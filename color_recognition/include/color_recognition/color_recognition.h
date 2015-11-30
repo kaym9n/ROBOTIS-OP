@@ -32,10 +32,6 @@ protected:
     //flag indicating a new image has been received
     bool newImageFlag;
 
-    //image time stamp
-    unsigned int tsec;
-    unsigned int tnsec;
-
     //img encoding id
     unsigned int imgEncoding;
     int recog_size;

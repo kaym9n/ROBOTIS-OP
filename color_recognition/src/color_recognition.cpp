@@ -41,7 +41,7 @@ void ColorRecogNode::process()
     {
         int _sum_r = 0, _sum_g = 0, _sum_b = 0;
 
-        // ROS_INFO("height : %d, width : %d, channels : %d, start_height : %d, start_width : %d", image_height, image_width, RGB_Channel, start_height, start_width);
+        // ROS_INFO("height : %d, width : %d, start_height : %d, start_width : %d", image_height, image_width, start_height, start_width);
 
         for(int _row = start_height; _row < start_height + recog_size; _row++)
         {

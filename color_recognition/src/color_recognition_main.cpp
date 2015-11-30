@@ -10,7 +10,7 @@ int main(int argc, char **argv)
       ColorRecogNode color_node;
 
       //set node loop rate
-      ros::Rate _loop_rate(30);
+      ros::Rate loop_rate(30);
 
       ROS_INFO("Start color recongnition .....");
 
@@ -29,7 +29,7 @@ int main(int argc, char **argv)
             ros::spinOnce();
 
             //relax to fit output rate
-            _loop_rate.sleep();
+            loop_rate.sleep();
       }
 
       //exit program
