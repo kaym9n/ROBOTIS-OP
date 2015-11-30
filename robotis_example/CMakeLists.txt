@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(robotis_example)
 
 find_package(catkin REQUIRED COMPONENTS
-  dynamixel_controller
+  robotis_controller
   roscpp
   std_msgs
 )
@@ -50,7 +50,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
   LIBRARIES robotis_example
-  CATKIN_DEPENDS dynamixel_controller roscpp std_msgs
+  CATKIN_DEPENDS robotis_controller roscpp std_msgs
 #  DEPENDS system_lib
 )
 
@@ -80,7 +80,7 @@ add_executable(example_read_write
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(example_read_write
-  dynamixel_controller
+  robotis_controller
   ${catkin_LIBRARIES}
 )
 
