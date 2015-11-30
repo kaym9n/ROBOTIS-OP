@@ -29,9 +29,9 @@ catkin_package(
 )
 
 ## Specify additional locations of header files
-include_directories(/home/thor/catkin_ws/lib/ball_detector/src ${catkin_INCLUDE_DIRS})
+include_directories(/home/thor/ball_detector/src ${catkin_INCLUDE_DIRS})
 
 ## Declare a cpp executable
 add_executable(btr_ball_detector_node ${SRCS} src/ball_detector_main.cpp)
 add_dependencies(btr_ball_detector_node ${PROJECT_NAME}_EXPORTED_TARGETS)
-target_link_libraries(btr_ball_detector_node /home/thor/catkin_ws/lib/ball_detector/lib/libball_detector.so ${catkin_LIBRARIES})
+target_link_libraries(btr_ball_detector_node /home/thor/ball_detector/lib/libball_detector.so ${catkin_LIBRARIES})
