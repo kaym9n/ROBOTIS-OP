@@ -1,0 +1,29 @@
+<!-- Launches a Black Fly camera, the ball detector and its visualization  -->
+
+<launch>
+
+      <!--  Launch bfly camera -->
+      <include 
+            file="$(find btr_bfly_camera)/launch/bfly_start.launch"> 
+            <arg name="bfly_params_file" value="$(find btr_ball_detector)/launch/bfly_camera_params.yaml" />
+      </include>
+     
+     <group ns="$(env ROBOT)">      
+     
+            <!-- ball detector     -->
+            <node pkg="btr_ball_detector"
+                  type="btr_ball_detector_node"
+                  name="btr_ball_detector_node"
+                  args=""
+                  output="screen">
+                  <rosparam command="load" file="ball_detector_params.yaml"/>  
+                  <remap from="/$(env ROBOT)/btr_ball_detector_node/image_in" to="/$(env ROBOT)/btr_bfly_camera_node/image_raw"/>
+            </node>
+                       
+      </group>
+      
+     <!--  Visualization -->
+     <include file="view.launch"> </include>            
+      
+</launch>
+

@@ -1,0 +1,34 @@
+<!-- Launches an UVC camera, the ball detector and its visualization  -->
+
+<launch>
+
+     <group ns="$(env ROBOT)">      
+     
+            <!-- UVC camera -->
+            <node       
+                  pkg="uvc_cam2" 
+                  type="sender" 
+                  name="camera" 
+                  output="screen">
+                  <param name="device" type="str" value="/dev/video0" />
+                  <param name="camera" type="str" value="/camera" />
+                  <param name="fps" type="int" value="20" />
+            </node>      
+
+            <!-- ball detector     -->
+            <node pkg="btr_ball_detector"
+                  type="btr_ball_detector_node"
+                  name="btr_ball_detector_node"
+                  args=""
+                  output="screen">
+                  <rosparam command="load" file="ball_detector_params.yaml"/>  
+                  <remap from="/$(env ROBOT)/btr_ball_detector_node/image_in" to="/$(env ROBOT)/camera/image_raw"/>                  
+            </node>
+                       
+      </group>
+      
+     <!--  Visualization -->
+     <include file="view.launch"> </include>            
+      
+</launch>
+

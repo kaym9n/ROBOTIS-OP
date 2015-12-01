@@ -1,0 +1,16 @@
+<!-- Launches an UVC camera, the ball detector and its visualization  -->
+
+<launch>
+            <!-- UVC camera -->
+
+            <!-- ball detector     -->
+            <node pkg="btr_ball_detector"
+                  type="btr_ball_detector_node"
+                  name="btr_ball_detector_node"
+                  args=""
+                  output="screen">
+                  <rosparam command="load" file="$(find btr_ball_detector)/launch/ball_detector_params_op.yaml"/>  
+                  <remap from="/btr_ball_detector_node/image_in" to="/image_raw"/>                  
+            </node>
+</launch>
+
