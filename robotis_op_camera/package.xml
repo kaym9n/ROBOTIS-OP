@@ -1,12 +1,10 @@
 <?xml version="1.0"?>
 <package>
-  <name>op_camera</name>
+  <name>robotis_op_camera</name>
   <version>0.2.4</version>
   <description>
      A collection of node(let)s that stream images from USB cameras (UVC)
-     and provide CameraInfo messages to consumers. Includes a
-     two-camera node that provides rough synchronization
-     for stereo vision. It's modified for ROBOTIS OP.
+     and provide CameraInfo messages to consumers. It's modified for ROBOTIS OP.
 
      Currently uses the base driver from Morgan Quigley's uvc_cam package.
   </description>

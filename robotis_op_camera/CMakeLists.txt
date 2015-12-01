@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(op_camera)
+project(robotis_op_camera)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -91,8 +91,8 @@ target_link_libraries(nodelet_uvc_camera ${Boost_LIBRARIES} ${V4L2_LIBRARIES} ${
 add_executable(uvc_camera_node src/camera_node.cpp src/camera.cpp src/uvc_cam.cpp)
 target_link_libraries(uvc_camera_node ${Boost_LIBRARIES} ${V4L2_LIBRARIES} ${catkin_LIBRARIES})
 
-add_executable(uvc_stereo_node src/stereo_node.cpp src/stereo.cpp src/uvc_cam.cpp)
-target_link_libraries(uvc_stereo_node ${Boost_LIBRARIES} ${V4L2_LIBRARIES} ${catkin_LIBRARIES})
+#add_executable(uvc_stereo_node src/stereo_node.cpp src/stereo.cpp src/uvc_cam.cpp)
+#target_link_libraries(uvc_stereo_node ${Boost_LIBRARIES} ${V4L2_LIBRARIES} ${catkin_LIBRARIES})
 
 #############
 ## Install ##
@@ -109,7 +109,7 @@ target_link_libraries(uvc_stereo_node ${Boost_LIBRARIES} ${V4L2_LIBRARIES} ${cat
 # )
 
 ## Mark executables and/or libraries for installation
-install(TARGETS nodelet_uvc_camera uvc_camera_node uvc_stereo_node
+install(TARGETS nodelet_uvc_camera uvc_camera_node
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
