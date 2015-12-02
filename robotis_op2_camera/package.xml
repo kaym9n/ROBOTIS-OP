@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package>
-  <name>robotis_op_camera</name>
+  <name>robotis_op2_camera</name>
   <version>0.2.4</version>
   <description>
      A collection of node(let)s that stream images from USB cameras (UVC)
@@ -24,7 +24,7 @@
   <!-- Url tags are optional, but mutiple are allowed, one per tag -->
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
   <!-- Example: -->
-  <url type="website">https://github.com/ROBOTIS-GIT/ROBOTIS-OP/op_camera</url>
+  <url type="website">https://github.com/ROBOTIS-GIT/ROBOTIS-OP/tree/master/robotis_op2_camera</url>
 
 
   <!-- Author tags are optional, mutiple are allowed, one per tag -->
