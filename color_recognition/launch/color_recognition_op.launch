@@ -1,5 +1,5 @@
 <launch>
-    <include file="$(find robotis_op2_camera)/launch/robotis_op_camera.launch"/>
+    <include file="$(find robotis_op2_camera)/launch/robotis_op2_camera.launch"/>
     
     <node pkg="color_recognition" type="color_recognition_node" name="color_recognition"/>
     
