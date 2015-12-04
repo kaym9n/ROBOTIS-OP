@@ -20,10 +20,20 @@
 
   <build_depend>robotis_controller</build_depend>
   <build_depend>roscpp</build_depend>
-  <build_depend>std_msgs</build_depend>
+  <build_depend>std_msgs</build_depend>  
+  <build_depend>nodelet</build_depend>
 
   <run_depend>robotis_controller</run_depend>
   <run_depend>roscpp</run_depend>
   <run_depend>std_msgs</run_depend>
+  <run_depend>nodelet</run_depend>
+
+  <export>
+    <!-- You can specify that this package is a metapackage here: -->
+    <!-- <metapackage/> -->
+
+    <!-- Other tools can request additional information be placed here -->
+    <nodelet plugin="${prefix}/nodelet_example.xml"/>
+  </export>
 
 </package>

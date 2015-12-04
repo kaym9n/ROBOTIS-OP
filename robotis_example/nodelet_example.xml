@@ -1,0 +1,7 @@
+<library path="lib/libReadWriteNodelet">
+  <class name="robotis_example/ReadWriteNodelet" type="robotis_example::ReadWriteNodelet" base_class_type="nodelet::Nodelet">
+  <description>
+  This is my nodelet.
+  </description>
+  </class>
+</library>

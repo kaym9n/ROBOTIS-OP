@@ -144,6 +144,8 @@ void op2_joint_states_callback(const sensor_msgs::JointState::ConstPtr& msg)
         }
     }
 
+    //ROS_INFO("send");
+    joint_states.header.stamp = ros::Time::now();
     joint_states_pub.publish(joint_states);
 }
 

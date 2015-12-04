@@ -5,6 +5,7 @@ find_package(catkin REQUIRED COMPONENTS
   robotis_controller
   roscpp
   std_msgs
+  nodelet
 )
 
 ## System dependencies are found with CMake's conventions
@@ -48,9 +49,9 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-  LIBRARIES robotis_example
-  CATKIN_DEPENDS robotis_controller roscpp std_msgs
+  INCLUDE_DIRS include
+  LIBRARIES robotis_example nodelet_example
+  CATKIN_DEPENDS robotis_controller roscpp std_msgs nodelet
 #  DEPENDS system_lib
 )
 
@@ -62,14 +63,15 @@ catkin_package(
 ## Your package locations should be listed before other locations
 # include_directories(include)
 include_directories(
-#  include
+  include
   ${catkin_INCLUDE_DIRS}
 )
 
 ## Declare a cpp library
-# add_library(robotis_example
-#   src/${PROJECT_NAME}/robotis_example.cpp
-# )
+add_library(ReadWriteNodelet
+  src/ReadWrite.cpp
+  src/ReadWrite_nodelet.cpp
+)
 
 ## Declare a cpp executable
 add_executable(example_read_write 
@@ -80,6 +82,11 @@ add_executable(example_read_write
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(example_read_write
+  robotis_controller
+  ${catkin_LIBRARIES}
+)
+
+target_link_libraries(ReadWriteNodelet
   robotis_controller
   ${catkin_LIBRARIES}
 )
