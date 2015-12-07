@@ -1,0 +1,9 @@
+
+<launch>
+    <node name="robotis_manager" pkg="robotis_controller" type="robotis_manager" output="screen">
+        <rosparam command="load" file="$(find robotis_example)/launch/ROBOTIS-OP2.yaml" />
+        <rosparam param="publish_joint_topic_name">"/robot_joint_states"</rosparam>
+        <rosparam param="subscribe_joint_topic_name">"/controller_joint_states"</rosparam>
+    </node>
+    <node name="action_script" pkg="action_script" type="action_script_node" output="screen" />
+</launch> 

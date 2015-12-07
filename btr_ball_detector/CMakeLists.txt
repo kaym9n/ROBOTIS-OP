@@ -14,7 +14,7 @@ SET(SRCS
 )
 
 SET(ball_detector
-    /home/robotis/ball_detector
+    /home/thor/ball_detector
 )
 
 SET(ball_detector_INCLUDE_DIR
