@@ -96,13 +96,21 @@ public:
         STEP step[MAXNUM_STEP];		// Page step    65~511
     } PAGE;
 
+    const int CENTER_VALUE;
+    const int MAX_VALUE;
+    const double MIN_ANGLE;
+    const double MAX_ANGLE;
+    const double RATIO_VALUE2ANGLE;
+    const double RATIO_ANGLE2VALUE;
+
+    /*
     const int CENTER_VALUE = 2048;
     const int MAX_VALUE = 4095;
     const double MIN_ANGLE = -180.0; // degree
     const double MAX_ANGLE = 180.0; // degree
     const double RATIO_VALUE2ANGLE = 0.088; // 360 / 4096
     const double RATIO_ANGLE2VALUE = 11.378; // 4096 / 360
-
+*/
 public:
     bool DEBUG_PRINT;
 

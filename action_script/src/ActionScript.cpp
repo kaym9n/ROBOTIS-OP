@@ -29,6 +29,12 @@ ActionScript::ActionScript(ros::NodeHandle nh_, ros::NodeHandle param_nh_)
                   "l_ank_roll",
                   "head_pan",
                   "head_tilt" })
+    , CENTER_VALUE(2048)
+    , MAX_VALUE(4095)
+    , MIN_ANGLE(-180.0) // degree
+    , MAX_ANGLE(180.0) // degree
+    , RATIO_VALUE2ANGLE(0.088) // 360 / 4096
+    , RATIO_ANGLE2VALUE(11.378) // 4096 / 360
 {
 
     // ros callback & publisher
@@ -315,7 +321,7 @@ bool ActionScript::getJointPosition()
             for( bID = 1; bID <= 20; bID++ )
             {
                 // if(m_Joint.GetEnable(bID) == true)
-                    ipMainAngle1024[bID] = ipMovingAngle1024[bID] - ipMainAngle1024[bID] - ipAccelAngle1024[bID];
+                ipMainAngle1024[bID] = ipMovingAngle1024[bID] - ipMainAngle1024[bID] - ipAccelAngle1024[bID];
             }
         }
         else if( bSection == POST_SECTION )
@@ -339,7 +345,7 @@ bool ActionScript::getJointPosition()
             for( bID = 1; bID <= 20; bID++ )
             {
                 // if(m_Joint.GetEnable(bID) == true)
-                    ipLastOutSpeed1024[bID] = 0;
+                ipLastOutSpeed1024[bID] = 0;
             }
         }
 
