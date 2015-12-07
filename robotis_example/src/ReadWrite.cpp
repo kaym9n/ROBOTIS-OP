@@ -44,8 +44,7 @@ ReadWrite::ReadWrite(ros::NodeHandle nh)
         "r_ank_roll",
         "l_ank_roll",
         "head_pan",
-        "head_tilt"
-    })
+        "head_tilt" })
 {
     manager_ready_sub   = nh_.subscribe("/manager_ready", 10, &ReadWrite::manager_ready_callback, this);
     eye_led_color_sub   = nh_.subscribe("/eye_led_color", 10, &ReadWrite::eye_led_color_callback, this);
@@ -176,6 +175,10 @@ void ReadWrite::head_led_color_callback(const std_msgs::ColorRGBA::ConstPtr& msg
 
 void ReadWrite::op2_joint_states_callback(const sensor_msgs::JointState::ConstPtr& msg)
 {
+    // ros::Time _now = ros::Time::now();
+    // ros::Duration _dur = _now - msg->header.stamp;
+    // ROS_INFO_STREAM("e_received | " << _dur);
+
     sensor_msgs::JointState _joint_states;
 
     if(mode == RIGHT_TO_LEFT)

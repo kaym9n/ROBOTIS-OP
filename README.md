@@ -1,2 +1,3 @@
 # ROBOTIS-OP
-The main page of the ROBOTIS-OP repositories
+It's TEST version, Don't use it
+I recommend official [ROBOTIS-GIT](https://github.com/ROBOTIS-GIT/ROBOTIS-OP)
