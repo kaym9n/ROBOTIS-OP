@@ -50,9 +50,6 @@ ActionScript::ActionScript(ros::NodeHandle nh_, ros::NodeHandle param_nh_)
 	pp_pub = nh.advertise<robotis_controller::PublishPosition>("/publish_position", 10);
 	ct_pub = nh.advertise<robotis_controller::ControlTorque>("/control_torque", 10);
 
-    // callback queue thread
-	ros_thread = boost::thread(boost::bind(&ActionScript::ros_thread_proc, this));
-
 	// Wait for robotis_manager initialization
 	while(manager_ready == false)
 		ros::spinOnce();
@@ -110,7 +107,8 @@ ActionScript::ActionScript(ros::NodeHandle nh_, ros::NodeHandle param_nh_)
 	}
 	pp_pub.publish(_pp);
 
-    ROS_INFO("Ready to start node.");
+    // callback queue thread
+	ros_thread = boost::thread(boost::bind(&ActionScript::ros_thread_proc, this));
 }
 
 ActionScript::~ActionScript()
@@ -140,18 +138,23 @@ void ActionScript::manager_ready_callback(const std_msgs::Bool::ConstPtr& msg)
 void ActionScript::comm_thread_proc()
 {
 	ROS_INFO("Start action script processing..");
-	ros::Rate _loop_hz(125);	// 8ms
+	ros::Rate _loop_hz(100);	// 8ms
 	ros::Time _time;
 
 	m_startNode = true;
 	while(ros::ok())
     {
+        // ros::Time _now = ros::Time::now();
+        // ros::Duration _dur = _now - _time;
+        // _time = _now;
+
 		// get desired current joint position
 		if(getJointPosition() == true)
 		{
             // publish controller joint states
 			controller_joint_pub.publish(desired_position);
 			desired_position.header.stamp = ros::Time::now();
+			// ROS_INFO_STREAM("action_loop_rate " << _dur);
 		}
 		_loop_hz.sleep();
 	}
@@ -161,6 +164,9 @@ void ActionScript::comm_thread_proc()
 
 void ActionScript::ros_thread_proc()
 {
+
+    ROS_INFO("Ready to start node.");
+
 	while(ros::ok())
 		ros::spinOnce();
 	return;
@@ -365,7 +371,7 @@ bool ActionScript::getJointPosition()
 			// if(m_Joint.GetEnable(bID) == true)
 			{
 				// wpStartAngle1024[bID] = m_Joint.GetValue(bID);
-				for(int ix = 0; ix < 20; ix++)
+				for(int ix = 0; ix < desired_position.name.size(); ix++)
 				{
 					std::string _name;
 					if(getJointName(bID, _name) == false) continue;

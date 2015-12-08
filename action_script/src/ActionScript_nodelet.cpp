@@ -57,4 +57,4 @@ class ActionScriptNodelet : public nodelet::Nodelet {
 
 }   // namespace
 
-PLUGINLIB_DECLARE_CLASS(ROBOTIS, ActionScriptNodelet, ROBOTIS::ActionScriptNodelet, nodelet::Nodelet);
+PLUGINLIB_DECLARE_CLASS(action_script, ActionScriptNodelet, ROBOTIS::ActionScriptNodelet, nodelet::Nodelet);
