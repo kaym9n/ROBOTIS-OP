@@ -5,8 +5,13 @@
 #include <ros/ros.h>
 #include <sensor_msgs/JointState.h>
 #include <std_msgs/Int16.h>
+#include <std_msgs/Bool.h>
 
 #include <boost/thread.hpp>
+
+#include <robotis_controller/ControlWrite.h>
+#include <robotis_controller/ControlTorque.h>
+#include <robotis_controller/PublishPosition.h>
 
 namespace ROBOTIS
 {
@@ -136,7 +141,7 @@ public:
 
 private:
 
-    /////////////// Enum 변수
+    /////////////// Enum
 
     /**************************************
     * Section             /----\
@@ -155,6 +160,10 @@ private:
     ros::Subscriber current_joint_sub;
     ros::Publisher  controller_joint_pub;
     std::string joint_names[NUMBER_OF_JOINTS];
+    ros::Publisher control_write_pub;
+    ros::Subscriber manager_ready_sub;
+    ros::Publisher pp_pub;
+    ros::Publisher ct_pub;
 
     sensor_msgs::JointState current_joint_state;
     sensor_msgs::JointState desired_position;
@@ -164,6 +173,8 @@ private:
     PAGE m_NextPlayPage;
     STEP m_CurrentStep;
 
+    bool m_startNode;
+    bool manager_ready;
     int m_portNum;
     int m_IndexPlayingPage;
     bool m_FirstDrivingStart;
@@ -182,8 +193,11 @@ private:
     bool getJointPosition();
     void motionControlCallback(const std_msgs::Int16::ConstPtr &msg);
     void jointStatesCallback(const sensor_msgs::JointState::ConstPtr &msg);
+    void manager_ready_callback(const std_msgs::Bool::ConstPtr& msg);
     void comm_thread_proc();
     void ros_thread_proc();
+
+    void control_write(int id, int addr, int length, int value);
 
     int Angle2Value(double angle) { return (int)(angle*RATIO_ANGLE2VALUE)+CENTER_VALUE; }
     double Value2Angle(int value) { return (double)(value-CENTER_VALUE)*RATIO_VALUE2ANGLE; }
