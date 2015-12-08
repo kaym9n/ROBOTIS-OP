@@ -186,6 +186,7 @@ private:
 
     // Action();
 
+    bool initManager();
     bool VerifyChecksum( PAGE *pPage );
     void SetChecksum( PAGE *pPage );
     bool getJointName(const int& id, std::string &joint_name);

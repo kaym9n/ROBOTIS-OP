@@ -81,8 +81,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
-#  LIBRARIES action_script
-#  CATKIN_DEPENDS nodelet roscpp sensor_msgs
+  LIBRARIES action_script
+  CATKIN_DEPENDS nodelet roscpp sensor_msgs
 #  DEPENDS system_lib
 )
 
@@ -99,9 +99,10 @@ include_directories(
 )
 
 ## Declare a cpp library
-# add_library(action_script
-#   src/${PROJECT_NAME}/action_script.cpp
-# )
+add_library(ActionScriptNodelet
+  src/ActionScript_nodelet.cpp
+  src/ActionScript.cpp
+)
 
 ## Declare a cpp executable
 add_executable(action_script_node
@@ -115,6 +116,10 @@ add_executable(action_script_node
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(action_script_node
+  ${catkin_LIBRARIES}
+)
+
+target_link_libraries(ActionScriptNodelet
   ${catkin_LIBRARIES}
 )
 

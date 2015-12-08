@@ -1,6 +1,0 @@
-
-<launch>
-    <include file="$(find robotis_controller)/launch/robotis_manager_nodelet.launch"/>
-    
-    <node name="robotis_example_nodelet" pkg="nodelet" type="nodelet" args="load robotis_example/ReadWriteNodelet robotis_nodelet_manager" output="screen" />
-</launch> 

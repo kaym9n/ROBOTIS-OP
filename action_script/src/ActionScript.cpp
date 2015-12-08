@@ -39,16 +39,18 @@ ActionScript::ActionScript(ros::NodeHandle nh_, ros::NodeHandle param_nh_)
 , RATIO_ANGLE2VALUE(11.378) // 4096 / 360
 {
 	DEBUG_PRINT = true;
+
 	// ros callback & publisher
+    manager_ready_sub   = nh.subscribe("/manager_ready", 10, &ActionScript::manager_ready_callback, this);
 	action_control_sub  = nh.subscribe("/play_motion", 100, &ActionScript::motionControlCallback, this);
 	current_joint_sub   = nh.subscribe("/robot_joint_states", 100, &ActionScript::jointStatesCallback, this);
-	controller_joint_pub = nh.advertise<sensor_msgs::JointState>("/controller_joint_states", 10);
-	manager_ready_sub   = nh.subscribe("/manager_ready", 10, &ActionScript::manager_ready_callback, this);
-	control_write_pub = nh_.advertise<robotis_controller::ControlWrite>("/control_write", 10);
+    controller_joint_pub = nh.advertise<sensor_msgs::JointState>("/controller_joint_states", 10);
+    control_write_pub = nh.advertise<robotis_controller::ControlWrite>("/control_write", 10);
 
 	pp_pub = nh.advertise<robotis_controller::PublishPosition>("/publish_position", 10);
 	ct_pub = nh.advertise<robotis_controller::ControlTorque>("/control_torque", 10);
 
+    // callback queue thread
 	ros_thread = boost::thread(boost::bind(&ActionScript::ros_thread_proc, this));
 
 	// Wait for robotis_manager initialization
@@ -108,7 +110,7 @@ ActionScript::ActionScript(ros::NodeHandle nh_, ros::NodeHandle param_nh_)
 	}
 	pp_pub.publish(_pp);
 
-	ROS_INFO("Go Init.");
+    ROS_INFO("Ready to start node.");
 }
 
 ActionScript::~ActionScript()
@@ -143,13 +145,11 @@ void ActionScript::comm_thread_proc()
 
 	m_startNode = true;
 	while(ros::ok())
-	{
-		// publish controller joint states
-		// sensor_msgs::JointState _joint_states;
-
+    {
 		// get desired current joint position
 		if(getJointPosition() == true)
 		{
+            // publish controller joint states
 			controller_joint_pub.publish(desired_position);
 			desired_position.header.stamp = ros::Time::now();
 		}
@@ -161,15 +161,6 @@ void ActionScript::comm_thread_proc()
 
 void ActionScript::ros_thread_proc()
 {
-	//	// wait init
-	//	ROS_INFO("Wait start...");
-	//	while(m_startNode == false) {}
-	//
-	//	// init motion
-	//	Start(1);
-
-	// ROS_INFO("Ready to play motion...");
-
 	while(ros::ok())
 		ros::spinOnce();
 	return;
@@ -178,6 +169,7 @@ void ActionScript::ros_thread_proc()
 bool ActionScript::isJointNameInParam()
 {
 	int port_num = NoPort;
+
 	if(nh.getParam("port_num", port_num) == false)
 		return false;
 
@@ -192,7 +184,7 @@ bool ActionScript::isJointNameInParam()
 bool ActionScript::getJointPosition()
 {
 	sensor_msgs::JointState _joints;
-	//////////////////// 吏��뿭 蹂��닔
+    //////////////////// 지역 변수
 	unsigned char bID;
 	unsigned long ulTotalTime256T;
 	unsigned long ulPreSectionTime256T;
@@ -208,16 +200,16 @@ bool ActionScript::getJointPosition()
 	unsigned short wNextTargetAngle; // Next target position
 	unsigned char bDirectionChanged;
 
-	///////////////// Static 蹂��닔
-	static unsigned short wpStartAngle1024[NUMBER_OF_JOINTS]; // 蹂닿컙�븷 �떆�옉 吏��젏
-	static unsigned short wpTargetAngle1024[NUMBER_OF_JOINTS]; // 蹂닿컙�븷 �룄李� 吏��젏
-	static short int ipMovingAngle1024[NUMBER_OF_JOINTS]; // 珥� 媛��빞�븷 嫄곕━
-	static short int ipMainAngle1024[NUMBER_OF_JOINTS]; // �벑�냽 援ш컙�뿉�꽌 媛��빞�븷 嫄곕━
-	static short int ipAccelAngle1024[NUMBER_OF_JOINTS]; // 媛��냽 援ш컙�뿉�꽌 媛��빞�븷 嫄곕━
-	static short int ipMainSpeed1024[NUMBER_OF_JOINTS]; // 紐⑺몴 �벑�냽�룄
-	static short int ipLastOutSpeed1024[NUMBER_OF_JOINTS]; // �씠 �쟾 �긽�깭�쓽 �냽�룄(愿��꽦)
-	static short int ipGoalSpeed1024[NUMBER_OF_JOINTS]; // 紐⑦꽣媛� �궡�빞 �븷 紐⑺몴�냽�룄
-	static unsigned char bpFinishType[NUMBER_OF_JOINTS]; // �룄李� 吏��젏�뿉 �룄�떖�븷 �긽�깭
+    ///////////////// Static 변수
+    static unsigned short wpStartAngle1024[NUMBER_OF_JOINTS]; // 보간할 시작 지점
+    static unsigned short wpTargetAngle1024[NUMBER_OF_JOINTS]; // 보간할 도착 지점
+    static short int ipMovingAngle1024[NUMBER_OF_JOINTS]; // 총 이동거리
+    static short int ipMainAngle1024[NUMBER_OF_JOINTS]; // 등속구간 이동거리
+    static short int ipAccelAngle1024[NUMBER_OF_JOINTS]; // 가속구간 이동거리
+    static short int ipMainSpeed1024[NUMBER_OF_JOINTS]; // 목표 등속도
+    static short int ipLastOutSpeed1024[NUMBER_OF_JOINTS]; // 이전 상태의 속도(관성)
+    static short int ipGoalSpeed1024[NUMBER_OF_JOINTS]; // 서보 목표속도
+    static unsigned char bpFinishType[NUMBER_OF_JOINTS]; // 도착지점 도달 상태
 	short int iSpeedN;
 	static unsigned short wUnitTimeCount;
 	static unsigned short wUnitTimeNum;
@@ -242,8 +234,8 @@ bool ActionScript::getJointPosition()
 	if( m_Playing == false )
 		return false;
 
-	// ROS_INFO("Process 1");
-	if( m_FirstDrivingStart == true ) // 泥섏쓬 �떆�옉�븷�븣
+    // 처음 시작할 때
+    if( m_FirstDrivingStart == true )
 	{
 		m_FirstDrivingStart = false; //First Process end
 		m_PlayingFinished = false;
@@ -279,8 +271,9 @@ bool ActionScript::getJointPosition()
 		}
 
 	}
-	// ROS_INFO("Process 2");
-	if( wUnitTimeCount < wUnitTimeNum ) // �쁽�옱 吏꾪뻾以묒씠�씪硫�
+
+    // Section 진행중
+    if( wUnitTimeCount < wUnitTimeNum )
 	{
 		wUnitTimeCount++;
 		if( bSection == PAUSE_SECTION )
@@ -297,7 +290,7 @@ bool ActionScript::getJointPosition()
 				_joints.name.push_back(_name);
 				double _deg = 0;
 
-				// �쁽�옱 �궗�슜�븯�뒗 愿��젅留� 怨꾩궛
+                // 현재 사용하는 관절만 계산
 				//if(m_Joint.GetEnable(bID) == true)
 				{
 					if( ipMovingAngle1024[bID] == 0 )
@@ -327,7 +320,7 @@ bool ActionScript::getJointPosition()
 						{
 							if( wUnitTimeCount == (wUnitTimeNum-1) )
 							{
-								// �뒪�뀦 留덉�留� �삤李⑤�� 以꾩씠湲곗쐞�빐 洹몃깷 紐⑺몴 �쐞移� 媛믪쓣 �궗�슜
+                                // 스텝 마지막 오차를 줄이기 위해 그냥 목표위치 값을 사용
 								// m_Joint.SetValue(bID, wpTargetAngle1024[bID]);
 								_deg = Value2Angle(wpTargetAngle1024[bID]);
 							}
@@ -342,8 +335,8 @@ bool ActionScript::getJointPosition()
 								}
 								else // NONE_ZERO_FINISH
 								{
-									// MAIN Section怨� �룞�씪�븯寃� �옉�룞-�룞�씪
-									// step�뿉�꽌 �뼱�뼡�꽌蹂대뒗 媛�怨� �뼱�뼡 �꽌蹂대뒗 �꽌�빞�븯�뒗 �긽�솴�씠 諛쒖깮�븷 �닔 �엳�쑝誘�濡� �씠�젃寃� �븷 �닔諛뽰뿉 �뾾�쓬
+                                    // MAIN Section과 동일하게 작동 - 동일
+                                    // step에서 어떤 서보는 가고, 어떤 서보는 서야하는 상황이 발생할 수 있으므로 이렇게 할 수밖에 없음
 									// m_Joint.SetValue(bID, wpStartAngle1024[bID] + (short int)(((long)(ipMainAngle1024[bID]) * wUnitTimeCount) / wUnitTimeNum));
 									_deg = Value2Angle(wpStartAngle1024[bID] + (short int)(((long)(ipMainAngle1024[bID]) * wUnitTimeCount) / wUnitTimeNum));
 									ipGoalSpeed1024[bID] = ipMainSpeed1024[bID];
@@ -353,6 +346,7 @@ bool ActionScript::getJointPosition()
 					}
 
 					_joints.position.push_back(Deg2Rad(_deg));
+                    // Slope, PGain은 처리안함
 					// m_Joint.SetSlope(bID, 1 << (m_PlayPage.header.slope[bID]>>4), 1 << (m_PlayPage.header.slope[bID]&0x0f));
 					// m_Joint.SetPGain(bID, (256 >> (m_PlayPage.header.slope[bID]>>4)) << 2);
 				}
@@ -361,7 +355,8 @@ bool ActionScript::getJointPosition()
 		desired_position = _joints;
 		return true;
 	}
-	else if( wUnitTimeCount >= wUnitTimeNum ) // �쁽�옱 Section�씠 �셿猷뚮릺�뿀�떎硫�
+    // 현재 Section 완료
+    else if( wUnitTimeCount >= wUnitTimeNum )
 	{
 		wUnitTimeCount = 0;
 
@@ -375,19 +370,19 @@ bool ActionScript::getJointPosition()
 					std::string _name;
 					if(getJointName(bID, _name) == false) continue;
 
-					if(_name == current_joint_state.name[ix])
+                    if(_name == desired_position.name[ix])
 					{
-						wpStartAngle1024[bID] = Angle2Value( Rad2Deg(current_joint_state.position[ix]) );
+                        wpStartAngle1024[bID] = Angle2Value( Rad2Deg(desired_position.position[ix]) );
 					}
 				}
 				ipLastOutSpeed1024[bID] = ipGoalSpeed1024[bID];
 			}
 		}
 
-		// Section �뾽�뜲�씠�듃 ( PRE -> MAIN -> POST -> (PAUSE or PRE) ... )
+        // Section 업데이트 ( PRE -> MAIN -> POST -> (PAUSE or PRE) ... )
 		if( bSection == PRE_SECTION )
 		{
-			// MAIN Section 以�鍮�
+            // MAIN Section 준비
 			bSection = MAIN_SECTION;
 			wUnitTimeNum =  wUnitTimeTotalNum - (wAccelStep << 1);
 
@@ -397,7 +392,7 @@ bool ActionScript::getJointPosition()
 				{
 					if( bpFinishType[bID] == NONE_ZERO_FINISH )
 					{
-						if( (wUnitTimeTotalNum - wAccelStep) == 0 ) // �벑�냽 援ш컙�씠 �쟾�� �뾾�떎硫�
+                        if( (wUnitTimeTotalNum - wAccelStep) == 0 ) // 등속구간이 없는 경우
 							ipMainAngle1024[bID] = 0;
 						else
 							ipMainAngle1024[bID] = (short)((((long)(ipMovingAngle1024[bID] - ipAccelAngle1024[bID])) * wUnitTimeNum) / (wUnitTimeTotalNum - wAccelStep));
@@ -409,7 +404,7 @@ bool ActionScript::getJointPosition()
 		}
 		else if( bSection == MAIN_SECTION )
 		{
-			// POST Section 以�鍮�
+            // POST Section 준비
 			bSection = POST_SECTION;
 			wUnitTimeNum = wAccelStep;
 
@@ -421,7 +416,7 @@ bool ActionScript::getJointPosition()
 		}
 		else if( bSection == POST_SECTION )
 		{
-			// Pause time �쑀臾댁뿉�뵲�씪 �떖�씪吏�
+            // Pause time에 따라 구분
 			if( wPauseTime )
 			{
 				bSection = PAUSE_SECTION;
@@ -434,7 +429,7 @@ bool ActionScript::getJointPosition()
 		}
 		else if( bSection == PAUSE_SECTION )
 		{
-			// PRE Section 以�鍮�
+            // PRE Section 준비
 			bSection = PRE_SECTION;
 
 			for( bID = 1; bID <= 20; bID++ )
@@ -444,10 +439,10 @@ bool ActionScript::getJointPosition()
 			}
 		}
 
-		// PRE Section�떆�뿉 紐⑤뱺 以�鍮꾨�� �븳�떎.
+        // PRE Section에서 모든 준비.
 		if( bSection == PRE_SECTION )
 		{
-			if( m_PlayingFinished == true ) // 紐⑥뀡�씠 �걹�궗�떎硫�
+            if( m_PlayingFinished == true ) // 모션이 끝난 경우
 			{
 				m_Playing = false;
 				return false;
@@ -455,9 +450,9 @@ bool ActionScript::getJointPosition()
 
 			m_PageStepCount++;
 
-			if( m_PageStepCount > m_PlayPage.header.stepnum ) // �쁽�옱 �럹�씠吏� �옱�깮�씠 �걹�궗�떎硫�
+            if( m_PageStepCount > m_PlayPage.header.stepnum ) // 현재 페이지 재생이 끝난 경우
 			{
-				// �떎�쓬 �럹�씠吏� 蹂듭궗
+                // 다음 페이지 복사
 				m_PlayPage = m_NextPlayPage;
 				if( m_IndexPlayingPage != wNextPlayPage )
 					bPlayRepeatCount = m_PlayPage.header.repeat;
@@ -465,51 +460,51 @@ bool ActionScript::getJointPosition()
 				m_IndexPlayingPage = wNextPlayPage;
 			}
 
-			if( m_PageStepCount == m_PlayPage.header.stepnum ) // 留덉�留� �뒪�뀦�씠�씪硫�
+            if( m_PageStepCount == m_PlayPage.header.stepnum ) // 마지막 스텝 인 경우
 			{
-				// �떎�쓬 �럹�씠吏� 濡쒕뵫
-				if( m_StopPlaying == true ) // 紐⑥뀡 �젙吏� 紐낅졊�씠 �엳�떎硫�
+                // 다음 페이지 로딩
+                if( m_StopPlaying == true ) // 모션 정지명령 인 경우
 				{
-					wNextPlayPage = m_PlayPage.header.exit; // �떎�쓬 �럹�씠吏��뒗 Exit �럹�씠吏�濡�
+                    wNextPlayPage = m_PlayPage.header.exit; // 다음 페이지를 Exit 페이지로
 				}
 				else
 				{
 					bPlayRepeatCount--;
-					if( bPlayRepeatCount > 0 ) // 諛섎났 �슏�닔媛� �궓�븯�떎硫�
-						wNextPlayPage = m_IndexPlayingPage; // �떎�쓬 �럹�씠吏��뒗 �쁽�옱 �럹�씠吏�濡�
-					else // 諛섎났�쓣 �떎�뻽�떎硫�
-						wNextPlayPage = m_PlayPage.header.next; // �떎�쓬 �럹�씠吏��뒗 Next �럹�씠吏�濡�
+                    if( bPlayRepeatCount > 0 ) // 반복 횟수가 남은 경우
+                        wNextPlayPage = m_IndexPlayingPage; // 다음 페이지를 현재 페이지로
+                    else // 반복완료 인 경우
+                        wNextPlayPage = m_PlayPage.header.next; // 다음 페이지를 Next 페이지로
 				}
 
-				if( wNextPlayPage == 0 ) // �옱�깮�븷 �떎�쓬 �럹�씠吏�媛� �뾾�떎硫� �쁽�옱 �뒪�뀦源뚯��븯怨� 醫낅즺
+                if( wNextPlayPage == 0 ) // 재생할 다음 페이지가 없는 경우 : 현재 스텝까지 하고 종료
 					m_PlayingFinished = true;
 				else
 				{
-					// �떎�쓬�럹�씠吏� 濡쒕뵫(媛숈쑝硫� 硫붾え由� 蹂듭궗, �떎瑜대㈃ �뙆�씪 �씫湲�)
+                    // 다음 페이지 로딩(같은 경우: 메모리 복사, 다른 경우: 파일에서 읽기)
 					if( m_IndexPlayingPage != wNextPlayPage )
 						LoadPage( wNextPlayPage, &m_NextPlayPage );
 					else
 						m_NextPlayPage = m_PlayPage;
 
-					// �옱�깮�븷 �젙蹂닿� �뾾�떎硫� �쁽�옱 �뒪�뀦源뚯��븯怨� 醫낅즺
+                    // 재생 할 정보가 없는 경우: 현재 스텝까지 하고 종료
 					if( m_NextPlayPage.header.repeat == 0 || m_NextPlayPage.header.stepnum == 0 )
 						m_PlayingFinished = true;
 				}
 			}
 
-			//////// Step �뙆�씪誘명꽣 怨꾩궛
+            //////// Step 파라미터 계산
 			wPauseTime = (((unsigned short)m_PlayPage.step[m_PageStepCount-1].pause) << 5) / m_PlayPage.header.speed;
 			wMaxSpeed256 = ((unsigned short)m_PlayPage.step[m_PageStepCount-1].time * (unsigned short)m_PlayPage.header.speed) >> 5;
 			if( wMaxSpeed256 == 0 )
 				wMaxSpeed256 = 1;
 			wMaxAngle1024 = 0;
 
-			////////// Joint蹂� �뙆�씪誘명꽣 怨꾩궛
+            ////////// Joint별 파라미터 계산
 			for( bID = 1; bID <= 20; bID++ )
 			{
 				// if(m_Joint.GetEnable(bID) == true)
 				{
-					// �씠�쟾, �쁽�옱, 誘몃옒瑜� 諛뷀깢�쑝濡� 沅ㅼ쟻�쓣 怨꾩궛
+                    // 이전, 현재, 미래를 바탕으로 궤적 계산
 					ipAccelAngle1024[bID] = 0;
 
 					// Find current target angle
@@ -527,9 +522,9 @@ bool ActionScript::getJointPosition()
 					ipMovingAngle1024[bID] = (int)(wpTargetAngle1024[bID] - wpStartAngle1024[bID]);
 
 					// Find Next target angle
-					if( m_PageStepCount == m_PlayPage.header.stepnum ) // �쁽�옱 �뒪�뀦�씠 留덉�留됱씠�씪硫�
+                    if( m_PageStepCount == m_PlayPage.header.stepnum ) // 현재 스텝이 마지막인 경우
 					{
-						if( m_PlayingFinished == true ) // �걹�궇 �삁�젙�씠�씪硫�
+                        if( m_PlayingFinished == true ) // 종료 예정
 							wNextTargetAngle = wCurrentTargetAngle;
 						else
 						{
@@ -539,6 +534,7 @@ bool ActionScript::getJointPosition()
 								wNextTargetAngle = m_NextPlayPage.step[0].position[bID];
 						}
 					}
+                    // 마지막이 아닌 경우
 					else
 					{
 						if( m_PlayPage.step[m_PageStepCount].position[bID] & INVALID_BIT_MASK )
@@ -551,7 +547,7 @@ bool ActionScript::getJointPosition()
 					if( ((wPrevTargetAngle < wCurrentTargetAngle) && (wCurrentTargetAngle < wNextTargetAngle))
 							|| ((wPrevTargetAngle > wCurrentTargetAngle) && (wCurrentTargetAngle > wNextTargetAngle)) )
 					{
-						// 怨꾩냽 利앷��븯嫄곕굹 媛먯냼�븯怨�, �샊�� 媛숇떎硫�(利�, 遺덉뿰�냽 �젏�씠 �뾾�떎硫�)
+                        // 계속 증가/감소, 같은 경우(방향전환 x)
 						bDirectionChanged = 0;
 					}
 					else
@@ -583,12 +579,12 @@ bool ActionScript::getJointPosition()
 				}
 			}
 
-			//�떆媛꾩쓣 怨꾩궛�빐�꽌 �떎�떆 7.8msec濡� �굹�늻�떎(<<7)-洹몄떆媛꾨룞�븞�뿉 7.8msec媛� 紐뉕컻�뱾�뼱媛��뒗吏� 怨꾩궛�븳 寃�
-			//�떒�쐞 蹂��솚�뮘�뿉 媛�/�냽�룄瑜� 援ы븯怨�(�떆媛�)洹� �떆媛꾩뿉 �떎�떆 7.8msec媛� 紐뉕컻�뱾�뼱媛��엳�뒗吏� 怨꾩궛
-			//�떒�쐞 蹂��솚 ---  媛� :1024怨�->300�룄怨�,  �냽�룄: 256怨� ->720怨�
-			//wUnitTimeNum = ((wMaxAngle1024*300/1024) /(wMaxSpeed256 * 720/256)) /7.8msec;
-			//             = ((128*wMaxAngle1024*300/1024) /(wMaxSpeed256 * 720/256)) ;    (/7.8msec == *128)
-			//             = (wMaxAngle1024*40) /(wMaxSpeed256 *3);
+            // 시간을 계산해서 다시 7.8ms으로 나누다(<<7) - 진행시간 동안에 7.8ms 주기가 몇번 반복되는지 계산
+            // 단위변환 뒤에 구한 시간(각/속도)에 7.8ms 주기가 몇번 반복되는지 계산
+            // 단위변환 ---   각: 1024계->300도계,  속도: 256계 ->720계
+            // wUnitTimeNum = ((wMaxAngle1024*300/1024) /(wMaxSpeed256 * 720/256)) /7.8msec;
+            //              = ((128*wMaxAngle1024*300/1024) /(wMaxSpeed256 * 720/256)) ;    (/7.8msec == *128)
+            //              = (wMaxAngle1024*40) /(wMaxSpeed256 *3);
 			if( m_PlayPage.header.schedule == TIME_BASE_SCHEDULE )
 				wUnitTimeTotalNum  = wMaxSpeed256; //TIME BASE 051025
 			else
@@ -603,7 +599,7 @@ bool ActionScript::getJointPosition()
 				{
 					wAccelStep = (wUnitTimeTotalNum - 1) >> 1;
 					if( wAccelStep == 0 )
-						wUnitTimeTotalNum = 0; //��吏곸씠�젮硫� �쟻�뼱�룄 媛��냽,�벑�냽�씠 �븳 �뒪�뀦�씠�긽�뵫�� 議댁옱�빐�빞
+                        wUnitTimeTotalNum = 0; //움직이려면 적어도 가속, 등속 구간이 한 스텝 이상씩은 존재
 				}
 			}
 
@@ -732,7 +728,6 @@ bool ActionScript::LoadFile( char* filename )
 	// open action file
 	FILE *action = fopen( filename, "r+b" );
 
-	ROS_INFO("here??");
 #ifdef WEBOTS
 	// Olivier.Michel@cyberbotics.com added the following line to allow opening a readonly file located in the Webots installation directory.
 	// This is mainly problematic on Windows

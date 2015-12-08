@@ -1,0 +1,6 @@
+
+<launch>
+    <include file="$(find robotis_controller)/launch/robotis_manager_nodelet.launch"/>
+    
+    <node name="action_script_nodelet" pkg="nodelet" type="nodelet" args="load action_script/ActionScriptNodelet robotis_nodelet_manager" output="screen" />
+</launch> 
