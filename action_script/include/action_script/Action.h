@@ -16,7 +16,7 @@
 namespace ROBOTIS
 {
 
-class ActionScript
+class Action
 {
 public:
     enum
@@ -119,13 +119,13 @@ public:
 public:
     bool DEBUG_PRINT;
 
-    ActionScript(ros::NodeHandle nh_, ros::NodeHandle param_nh_);
-    ~ActionScript();
+    Action(ros::NodeHandle nh_, ros::NodeHandle param_nh_);
+    ~Action();
 
     // static Action* GetInstance() { return m_UniqueInstance; }
 
-    void Initialize();
-    void Process();
+    bool Initialize();
+    bool Process();
     bool LoadFile(char* filename);
     bool CreateFile(char* filename);
     bool Start(int iPage);
@@ -138,6 +138,7 @@ public:
     bool LoadPage(int index, PAGE *pPage);
     bool SavePage(int index, PAGE *pPage);
     void ResetPage(PAGE *pPage);
+    void PublishControlJoints();
 
 private:
 
@@ -162,26 +163,30 @@ private:
     std::string joint_names[NUMBER_OF_JOINTS];
     ros::Publisher control_write_pub;
     ros::Subscriber manager_ready_sub;
-    ros::Publisher pp_pub;
-    ros::Publisher ct_pub;
+    // ros::Publisher pp_pub;
+    // ros::Publisher ct_pub;
 
-    sensor_msgs::JointState current_joint_state;
-    sensor_msgs::JointState desired_position;
+    sensor_msgs::JointState current_joint_states;
+    sensor_msgs::JointState desired_joint_states;
+
+    std::map<int, std::string> id_joint_table;
+    std::map<std::string, int> joint_id_table;
 
     FILE* m_ActionFile;
     PAGE m_PlayPage;
     PAGE m_NextPlayPage;
     STEP m_CurrentStep;
 
-    bool m_startNode;
+    bool make_jointNameTable;
     bool manager_ready;
-    int m_portNum;
+    int port_num;
     int m_IndexPlayingPage;
     bool m_FirstDrivingStart;
     int m_PageStepCount;
     bool m_Playing;
     bool m_StopPlaying;
     bool m_PlayingFinished;
+    bool m_hasCurrentJoints;
     boost::thread comm_thread, ros_thread;
 
     // Action();
@@ -189,12 +194,14 @@ private:
     bool initManager();
     bool VerifyChecksum( PAGE *pPage );
     void SetChecksum( PAGE *pPage );
-    bool getJointName(const int& id, std::string &joint_name);
-    bool isJointNameInParam();
-    bool getJointPosition();
+    bool initializeIdJointTable();
+    bool getJointName(const int &id, std::string &joint_name);
+    bool getID(const std::string &joint_name, int &id);
+    bool isPortInfoInParam(int& port_num);
+
     void motionControlCallback(const std_msgs::Int16::ConstPtr &msg);
-    void jointStatesCallback(const sensor_msgs::JointState::ConstPtr &msg);
-    void manager_ready_callback(const std_msgs::Bool::ConstPtr& msg);
+    void jointStatesCallback(const sensor_msgs::JointState::ConstPtr &msg) { m_hasCurrentJoints = true; current_joint_states = *msg; }
+    void manager_ready_callback(const std_msgs::Bool::ConstPtr& msg) { manager_ready = true; }
     void comm_thread_proc();
     void ros_thread_proc();
 

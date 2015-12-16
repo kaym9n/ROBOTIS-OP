@@ -101,13 +101,13 @@ include_directories(
 ## Declare a cpp library
 add_library(ActionScriptNodelet
   src/ActionScript_nodelet.cpp
-  src/ActionScript.cpp
+  src/Action.cpp
 )
 
 ## Declare a cpp executable
 add_executable(action_script_node
   src/ActionScript_node.cpp
-  src/ActionScript.cpp
+  src/Action.cpp
 )
 
 ## Add cmake target dependencies of the executable/library

@@ -6,7 +6,7 @@
 #include <pluginlib/class_list_macros.h>
 #include <nodelet/nodelet.h>
 
-#include "action_script/ActionScript.h"
+#include "action_script/Action.h"
 
 namespace ROBOTIS {
 
@@ -30,7 +30,7 @@ class ActionScriptNodelet : public nodelet::Nodelet {
       ros::NodeHandle node = getNodeHandle();
       ros::NodeHandle param = getPrivateNodeHandle();
 
-      action_scrpit = new ActionScript(node, param);
+      action_scrpit = new Action(node, param);
 
       char _file_name[128];
 
@@ -52,7 +52,7 @@ class ActionScriptNodelet : public nodelet::Nodelet {
     }
 
   private:
-    ActionScript *action_scrpit;
+    Action *action_scrpit;
 };
 
 }   // namespace

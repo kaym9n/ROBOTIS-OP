@@ -1,15 +1,17 @@
-#include "action_script/ActionScript.h"
+#include <ros/ros.h>
+
+#include "action_script/Action.h"
 
 namespace ROBOTIS
 {
 
-ActionScript::ActionScript(ros::NodeHandle nh_, ros::NodeHandle param_nh_)
+Action::Action(ros::NodeHandle nh_, ros::NodeHandle param_nh_)
 :nh(nh_), param_nh(param_nh_)
 , DEBUG_PRINT(false)
 , m_ActionFile(0)
+, m_hasCurrentJoints(false)
 , m_Playing(false)
-, m_portNum(NotCount)
-, m_startNode(false)
+, port_num(NotCount)
 , manager_ready(false)
 , joint_names({ "",
 	"r_sho_pitch",
@@ -40,20 +42,20 @@ ActionScript::ActionScript(ros::NodeHandle nh_, ros::NodeHandle param_nh_)
 {
 	DEBUG_PRINT = true;
 
-	// ros callback & publisher
-    manager_ready_sub   = nh.subscribe("/manager_ready", 10, &ActionScript::manager_ready_callback, this);
-	action_control_sub  = nh.subscribe("/play_motion", 100, &ActionScript::motionControlCallback, this);
-	current_joint_sub   = nh.subscribe("/robot_joint_states", 100, &ActionScript::jointStatesCallback, this);
-    controller_joint_pub = nh.advertise<sensor_msgs::JointState>("/controller_joint_states", 10);
-    control_write_pub = nh.advertise<robotis_controller::ControlWrite>("/control_write", 10);
+	make_jointNameTable = initializeIdJointTable();
 
-	pp_pub = nh.advertise<robotis_controller::PublishPosition>("/publish_position", 10);
-	ct_pub = nh.advertise<robotis_controller::ControlTorque>("/control_torque", 10);
+	// ros callback & publisher
+	manager_ready_sub   	= nh.subscribe("/manager_ready", 10, &Action::manager_ready_callback, this);
+	controller_joint_pub 	= nh.advertise<sensor_msgs::JointState>("/controller_joint_states", 10);
+	control_write_pub 		= nh.advertise<robotis_controller::ControlWrite>("/control_write", 10);
+
+	ros::Publisher pp_pub 					= nh.advertise<robotis_controller::PublishPosition>("/publish_position", 10);
+	ros::Publisher ct_pub 					= nh.advertise<robotis_controller::ControlTorque>("/control_torque", 10);
 
 	// Wait for robotis_manager initialization
 	while(manager_ready == false)
 		ros::spinOnce();
-	sleep(2);
+	sleep(1);
 
 	// CM-740 control table address 24 : Dynamixel Power
 	control_write(200, 24, 1, 1);
@@ -66,6 +68,7 @@ ActionScript::ActionScript(ros::NodeHandle nh_, ros::NodeHandle param_nh_)
 	/***** init pose start *****/
 	// set the goal velocity of all dynamixels to 100
 	control_write(254, 32, 2, 100);
+
 
 	// init pose (sit down)
 	sensor_msgs::JointState _init_joint_states;
@@ -98,7 +101,7 @@ ActionScript::ActionScript(ros::NodeHandle nh_, ros::NodeHandle param_nh_)
 	control_write(254, 32, 2, 0);
 	/***** init pose end *****/
 
-	// publish all joint position
+	// request to publish all joint position
 	robotis_controller::PublishPosition _pp;
 	for(int i = 1; i < 21; i++)
 	{
@@ -107,11 +110,11 @@ ActionScript::ActionScript(ros::NodeHandle nh_, ros::NodeHandle param_nh_)
 	}
 	pp_pub.publish(_pp);
 
-    // callback queue thread
-	ros_thread = boost::thread(boost::bind(&ActionScript::ros_thread_proc, this));
+	// callback queue thread
+	ros_thread = boost::thread(boost::bind(&Action::ros_thread_proc, this));
 }
 
-ActionScript::~ActionScript()
+Action::~Action()
 {
 	if(m_ActionFile != 0)
 		fclose(m_ActionFile);
@@ -120,7 +123,21 @@ ActionScript::~ActionScript()
 	if(ros_thread.joinable() == true) ros_thread.join();
 }
 
-void ActionScript::control_write(int id, int addr, int length, int value)
+bool Action::Initialize()
+{
+	m_Playing = false;
+	desired_joint_states = current_joint_states;
+
+	return true;
+}
+
+void Action::PublishControlJoints()
+{
+	desired_joint_states.header.stamp = ros::Time::now();
+	controller_joint_pub.publish(desired_joint_states);
+}
+
+void Action::control_write(int id, int addr, int length, int value)
 {
 	robotis_controller::ControlWrite _cw;
 	_cw.id = id;
@@ -130,67 +147,193 @@ void ActionScript::control_write(int id, int addr, int length, int value)
 	control_write_pub.publish(_cw);
 }
 
-void ActionScript::manager_ready_callback(const std_msgs::Bool::ConstPtr& msg)
+/*
+void Action::manager_ready_callback(const std_msgs::Bool::ConstPtr& msg)
 {
 	manager_ready = true;
 }
+ */
 
-void ActionScript::comm_thread_proc()
+void Action::comm_thread_proc()
 {
+	/*
 	ROS_INFO("Start action script processing..");
 	ros::Rate _loop_hz(100);	// 8ms
 	ros::Time _time;
 
+	// Start(1);
+
 	m_startNode = true;
 	while(ros::ok())
-    {
-        // ros::Time _now = ros::Time::now();
-        // ros::Duration _dur = _now - _time;
-        // _time = _now;
+	{
+		// ros::Time _now = ros::Time::now();
+		// ros::Duration _dur = _now - _time;
+		// _time = _now;
 
 		// get desired current joint position
 		if(getJointPosition() == true)
 		{
-            // publish controller joint states
-			controller_joint_pub.publish(desired_position);
+			// publish controller joint states
 			desired_position.header.stamp = ros::Time::now();
+			controller_joint_pub.publish(desired_position);
 			// ROS_INFO_STREAM("action_loop_rate " << _dur);
 		}
 		_loop_hz.sleep();
 	}
 	ROS_INFO("Terminated ROS");
 	return;
+	 */
 }
 
-void ActionScript::ros_thread_proc()
+void Action::ros_thread_proc()
 {
+	// action_script ros sub/pub
+	action_control_sub  = nh.subscribe("/play_motion", 100, &Action::motionControlCallback, this);
+	current_joint_sub   = nh.subscribe("/robot_joint_states", 100, &Action::jointStatesCallback, this);
 
-    ROS_INFO("Ready to start node.");
+	ROS_INFO("Ready to subscribe and publish.");
 
 	while(ros::ok())
 		ros::spinOnce();
 	return;
 }
 
-bool ActionScript::isJointNameInParam()
+bool Action::isPortInfoInParam(int& port_num)
 {
-	int port_num = NoPort;
+	port_num = NoPort;
 
-	if(nh.getParam("port_num", port_num) == false)
+	if(nh.getParam("/robotis_manager/port_num", port_num) == false)
 		return false;
 
 	if(port_num < 1)
 		return false;
 
-	m_portNum = port_num;
+	// m_portNum = port_num;
 	return true;
 }
 
-
-bool ActionScript::getJointPosition()
+bool Action::initializeIdJointTable()
 {
+	// check port info
+	// int _port_num = NoPort;
+	if(isPortInfoInParam(port_num) == false || port_num == NoPort)
+	{
+		ROS_ERROR("No port info in rosparam.");
+		return false;
+	}
+
+	for(int port_idx = 0; port_idx < port_num; port_idx++)
+	{
+		std::stringstream _dev_idx;
+		_dev_idx << port_idx;
+
+		// get dxl number
+		int _dxl_num;
+		if(nh.getParam("/robotis_manager/serial_ports/dxl_tty"+_dev_idx.str()+"/dxl_num", _dxl_num) == false || _dxl_num < 0)
+			return false;
+
+		// make id-joint table
+		for(int dxl_idx = 0; dxl_idx < _dxl_num; dxl_idx++)
+		{
+			int _id = -1;
+			std::string _joint_name = "";
+
+			std::stringstream _dxl_idx_ss;
+			_dxl_idx_ss << dxl_idx;
+			if(nh.getParam("/robotis_manager/serial_ports/dxl_tty"+_dev_idx.str()+"/dxl"+_dxl_idx_ss.str()+"/id", _id) == false) continue;
+			if(nh.getParam("/robotis_manager/serial_ports/dxl_tty"+_dev_idx.str()+"/dxl"+_dxl_idx_ss.str()+"/joint_name", _joint_name) == false) continue;
+
+			id_joint_table[_id] = _joint_name;
+			joint_id_table[_joint_name] = _id;
+			// ROS_INFO("id : %d, name : %s", _id, _joint_name.c_str());
+		}
+	}
+
+	if(id_joint_table.size() == 0 || joint_id_table.size() == 0)
+		return false;
+
+	ROS_INFO("id : %d, name : %d", id_joint_table.size(), joint_id_table.size());
+	return true;
+}
+
+bool Action::getJointName(const int &id, std::string &joint_name)
+{
+	if(make_jointNameTable == false)
+	{
+		if(id > 0 && id < NUMBER_OF_JOINTS)
+		{
+			joint_name = joint_names[id];
+			return true;
+		}
+		return false;
+	}
+
+	std::map<int, std::string>::iterator _iter = id_joint_table.find(id);
+	if(_iter == id_joint_table.end())
+		return false;
+
+	joint_name = _iter->second;
+	// ROS_INFO("joint name is %s", joint_name.c_str());
+	return true;
+}
+
+bool Action::getID(const std::string &joint_name, int &id)
+{
+	if(make_jointNameTable == false) return false;
+
+	std::map<std::string, int>::iterator _iter = joint_id_table.find(joint_name);
+	if(_iter == joint_id_table.end())
+		return false;
+
+	id = _iter->second;
+	return true;
+}
+
+void Action::motionControlCallback(const std_msgs::Int16::ConstPtr &msg)
+{
+	if(m_ActionFile == 0)
+	{
+		ROS_ERROR("Motion file is not yet opened.");
+		return;
+	}
+
+	int _motion_index = msg->data;
+	if(_motion_index == 0)
+	{
+		Stop();
+		return;
+	}
+
+	if(m_Playing == true)
+	{
+		ROS_ERROR("Motion is playing.");
+		return;
+	}
+
+	// set flag to play motion
+	Start(_motion_index);
+}
+
+/*
+void Action::jointStatesCallback(const sensor_msgs::JointState::ConstPtr &msg)
+{
+	// ROS_INFO("get current");
+	// update current joint angle
+	current_joint_state = *msg;
+}
+*/
+
+bool Action::Process()
+{
+	/*
+	if(m_ActionFile == 0) return;
+
+	// control joint thread
+	comm_thread = boost::thread(boost::bind(&Action::comm_thread_proc, this));
+	 */
+
 	sensor_msgs::JointState _joints;
-    //////////////////// 지역 변수
+	//////////////////// 지역 변수
 	unsigned char bID;
 	unsigned long ulTotalTime256T;
 	unsigned long ulPreSectionTime256T;
@@ -206,16 +349,16 @@ bool ActionScript::getJointPosition()
 	unsigned short wNextTargetAngle; // Next target position
 	unsigned char bDirectionChanged;
 
-    ///////////////// Static 변수
-    static unsigned short wpStartAngle1024[NUMBER_OF_JOINTS]; // 보간할 시작 지점
-    static unsigned short wpTargetAngle1024[NUMBER_OF_JOINTS]; // 보간할 도착 지점
-    static short int ipMovingAngle1024[NUMBER_OF_JOINTS]; // 총 이동거리
-    static short int ipMainAngle1024[NUMBER_OF_JOINTS]; // 등속구간 이동거리
-    static short int ipAccelAngle1024[NUMBER_OF_JOINTS]; // 가속구간 이동거리
-    static short int ipMainSpeed1024[NUMBER_OF_JOINTS]; // 목표 등속도
-    static short int ipLastOutSpeed1024[NUMBER_OF_JOINTS]; // 이전 상태의 속도(관성)
-    static short int ipGoalSpeed1024[NUMBER_OF_JOINTS]; // 서보 목표속도
-    static unsigned char bpFinishType[NUMBER_OF_JOINTS]; // 도착지점 도달 상태
+	///////////////// Static 변수
+	static unsigned short wpStartAngle1024[NUMBER_OF_JOINTS]; // 보간할 시작 지점
+	static unsigned short wpTargetAngle1024[NUMBER_OF_JOINTS]; // 보간할 도착 지점
+	static short int ipMovingAngle1024[NUMBER_OF_JOINTS]; // 총 이동거리
+	static short int ipMainAngle1024[NUMBER_OF_JOINTS]; // 등속구간 이동거리
+	static short int ipAccelAngle1024[NUMBER_OF_JOINTS]; // 가속구간 이동거리
+	static short int ipMainSpeed1024[NUMBER_OF_JOINTS]; // 목표 등속도
+	static short int ipLastOutSpeed1024[NUMBER_OF_JOINTS]; // 이전 상태의 속도(관성)
+	static short int ipGoalSpeed1024[NUMBER_OF_JOINTS]; // 서보 목표속도
+	static unsigned char bpFinishType[NUMBER_OF_JOINTS]; // 도착지점 도달 상태
 	short int iSpeedN;
 	static unsigned short wUnitTimeCount;
 	static unsigned short wUnitTimeNum;
@@ -226,7 +369,7 @@ bool ActionScript::getJointPosition()
 	static unsigned char bPlayRepeatCount;
 	static unsigned short wNextPlayPage;
 
-	/////////////// Enum 蹂��닔
+	/////////////// Enum 변수
 
 	/**************************************
 	 * Section             /----\
@@ -240,8 +383,8 @@ bool ActionScript::getJointPosition()
 	if( m_Playing == false )
 		return false;
 
-    // 처음 시작할 때
-    if( m_FirstDrivingStart == true )
+	// 처음 시작할 때
+	if( m_FirstDrivingStart == true )
 	{
 		m_FirstDrivingStart = false; //First Process end
 		m_PlayingFinished = false;
@@ -264,9 +407,9 @@ bool ActionScript::getJointPosition()
 					std::string _name;
 					if(getJointName(bID, _name) == false) continue;
 
-					if(_name == current_joint_state.name[ix])
+					if(_name == current_joint_states.name[ix])
 					{
-						wpTargetAngle1024[bID] = Angle2Value( Rad2Deg(current_joint_state.position[ix]) );
+						wpTargetAngle1024[bID] = Angle2Value( Rad2Deg(current_joint_states.position[ix]) );
 					}
 				}
 				// wpTargetAngle1024[bID] = MotionStatus::m_CurrentJoints.GetValue(bID);
@@ -275,11 +418,10 @@ bool ActionScript::getJointPosition()
 				ipGoalSpeed1024[bID] = 0;
 			}
 		}
-
 	}
 
-    // Section 진행중
-    if( wUnitTimeCount < wUnitTimeNum )
+	// Section 진행중
+	if( wUnitTimeCount < wUnitTimeNum )
 	{
 		wUnitTimeCount++;
 		if( bSection == PAUSE_SECTION )
@@ -296,7 +438,7 @@ bool ActionScript::getJointPosition()
 				_joints.name.push_back(_name);
 				double _deg = 0;
 
-                // 현재 사용하는 관절만 계산
+				// 현재 사용하는 관절만 계산
 				//if(m_Joint.GetEnable(bID) == true)
 				{
 					if( ipMovingAngle1024[bID] == 0 )
@@ -326,7 +468,7 @@ bool ActionScript::getJointPosition()
 						{
 							if( wUnitTimeCount == (wUnitTimeNum-1) )
 							{
-                                // 스텝 마지막 오차를 줄이기 위해 그냥 목표위치 값을 사용
+								// 스텝 마지막 오차를 줄이기 위해 그냥 목표위치 값을 사용
 								// m_Joint.SetValue(bID, wpTargetAngle1024[bID]);
 								_deg = Value2Angle(wpTargetAngle1024[bID]);
 							}
@@ -341,8 +483,8 @@ bool ActionScript::getJointPosition()
 								}
 								else // NONE_ZERO_FINISH
 								{
-                                    // MAIN Section과 동일하게 작동 - 동일
-                                    // step에서 어떤 서보는 가고, 어떤 서보는 서야하는 상황이 발생할 수 있으므로 이렇게 할 수밖에 없음
+									// MAIN Section과 동일하게 작동 - 동일
+									// step에서 어떤 서보는 가고, 어떤 서보는 서야하는 상황이 발생할 수 있으므로 이렇게 할 수밖에 없음
 									// m_Joint.SetValue(bID, wpStartAngle1024[bID] + (short int)(((long)(ipMainAngle1024[bID]) * wUnitTimeCount) / wUnitTimeNum));
 									_deg = Value2Angle(wpStartAngle1024[bID] + (short int)(((long)(ipMainAngle1024[bID]) * wUnitTimeCount) / wUnitTimeNum));
 									ipGoalSpeed1024[bID] = ipMainSpeed1024[bID];
@@ -352,43 +494,53 @@ bool ActionScript::getJointPosition()
 					}
 
 					_joints.position.push_back(Deg2Rad(_deg));
-                    // Slope, PGain은 처리안함
+					// Slope, PGain은 처리안함
 					// m_Joint.SetSlope(bID, 1 << (m_PlayPage.header.slope[bID]>>4), 1 << (m_PlayPage.header.slope[bID]&0x0f));
 					// m_Joint.SetPGain(bID, (256 >> (m_PlayPage.header.slope[bID]>>4)) << 2);
 				}
 			}
 		}
-		desired_position = _joints;
+		desired_joint_states = _joints;
 		return true;
 	}
-    // 현재 Section 완료
-    else if( wUnitTimeCount >= wUnitTimeNum )
+	// 현재 Section 완료
+	else if( wUnitTimeCount >= wUnitTimeNum )
 	{
 		wUnitTimeCount = 0;
 
-		for( bID = 1; bID <= 20; bID++ )
-		{
-			// if(m_Joint.GetEnable(bID) == true)
+		/*
+			for( bID = 1; bID <= 20; bID++ )
 			{
-				// wpStartAngle1024[bID] = m_Joint.GetValue(bID);
-				for(int ix = 0; ix < desired_position.name.size(); ix++)
+				// if(m_Joint.GetEnable(bID) == true)
 				{
-					std::string _name;
-					if(getJointName(bID, _name) == false) continue;
-
-                    if(_name == desired_position.name[ix])
+					// wpStartAngle1024[bID] = m_Joint.GetValue(bID);
+					for(int ix = 0; ix < desired_position.name.size(); ix++)
 					{
-                        wpStartAngle1024[bID] = Angle2Value( Rad2Deg(desired_position.position[ix]) );
+						std::string _name;
+						if(getJointName(bID, _name) == false) continue;
+
+						if(_name == desired_position.name[ix])
+						{
+							wpStartAngle1024[bID] = Angle2Value( Rad2Deg(desired_position.position[ix]) );
+						}
 					}
+					ipLastOutSpeed1024[bID] = ipGoalSpeed1024[bID];
 				}
-				ipLastOutSpeed1024[bID] = ipGoalSpeed1024[bID];
 			}
+		 */
+		for(int ix = 0; ix < desired_joint_states.name.size(); ix++)
+		{
+			int _id = -1;
+			if(getID(desired_joint_states.name[ix], _id) == false) continue;
+
+			wpStartAngle1024[_id] = Angle2Value( Rad2Deg(desired_joint_states.position[ix]) );
+			ipLastOutSpeed1024[_id] = ipGoalSpeed1024[_id];
 		}
 
-        // Section 업데이트 ( PRE -> MAIN -> POST -> (PAUSE or PRE) ... )
+		// Section 업데이트 ( PRE -> MAIN -> POST -> (PAUSE or PRE) ... )
 		if( bSection == PRE_SECTION )
 		{
-            // MAIN Section 준비
+			// MAIN Section 준비
 			bSection = MAIN_SECTION;
 			wUnitTimeNum =  wUnitTimeTotalNum - (wAccelStep << 1);
 
@@ -398,7 +550,7 @@ bool ActionScript::getJointPosition()
 				{
 					if( bpFinishType[bID] == NONE_ZERO_FINISH )
 					{
-                        if( (wUnitTimeTotalNum - wAccelStep) == 0 ) // 등속구간이 없는 경우
+						if( (wUnitTimeTotalNum - wAccelStep) == 0 ) // 등속구간이 없는 경우
 							ipMainAngle1024[bID] = 0;
 						else
 							ipMainAngle1024[bID] = (short)((((long)(ipMovingAngle1024[bID] - ipAccelAngle1024[bID])) * wUnitTimeNum) / (wUnitTimeTotalNum - wAccelStep));
@@ -410,7 +562,7 @@ bool ActionScript::getJointPosition()
 		}
 		else if( bSection == MAIN_SECTION )
 		{
-            // POST Section 준비
+			// POST Section 준비
 			bSection = POST_SECTION;
 			wUnitTimeNum = wAccelStep;
 
@@ -422,7 +574,7 @@ bool ActionScript::getJointPosition()
 		}
 		else if( bSection == POST_SECTION )
 		{
-            // Pause time에 따라 구분
+			// Pause time에 따라 구분
 			if( wPauseTime )
 			{
 				bSection = PAUSE_SECTION;
@@ -435,7 +587,7 @@ bool ActionScript::getJointPosition()
 		}
 		else if( bSection == PAUSE_SECTION )
 		{
-            // PRE Section 준비
+			// PRE Section 준비
 			bSection = PRE_SECTION;
 
 			for( bID = 1; bID <= 20; bID++ )
@@ -445,10 +597,10 @@ bool ActionScript::getJointPosition()
 			}
 		}
 
-        // PRE Section에서 모든 준비.
+		// PRE Section에서 모든 준비.
 		if( bSection == PRE_SECTION )
 		{
-            if( m_PlayingFinished == true ) // 모션이 끝난 경우
+			if( m_PlayingFinished == true ) // 모션이 끝난 경우
 			{
 				m_Playing = false;
 				return false;
@@ -456,9 +608,9 @@ bool ActionScript::getJointPosition()
 
 			m_PageStepCount++;
 
-            if( m_PageStepCount > m_PlayPage.header.stepnum ) // 현재 페이지 재생이 끝난 경우
+			if( m_PageStepCount > m_PlayPage.header.stepnum ) // 현재 페이지 재생이 끝난 경우
 			{
-                // 다음 페이지 복사
+				// 다음 페이지 복사
 				m_PlayPage = m_NextPlayPage;
 				if( m_IndexPlayingPage != wNextPlayPage )
 					bPlayRepeatCount = m_PlayPage.header.repeat;
@@ -466,51 +618,51 @@ bool ActionScript::getJointPosition()
 				m_IndexPlayingPage = wNextPlayPage;
 			}
 
-            if( m_PageStepCount == m_PlayPage.header.stepnum ) // 마지막 스텝 인 경우
+			if( m_PageStepCount == m_PlayPage.header.stepnum ) // 마지막 스텝 인 경우
 			{
-                // 다음 페이지 로딩
-                if( m_StopPlaying == true ) // 모션 정지명령 인 경우
+				// 다음 페이지 로딩
+				if( m_StopPlaying == true ) // 모션 정지명령 인 경우
 				{
-                    wNextPlayPage = m_PlayPage.header.exit; // 다음 페이지를 Exit 페이지로
+					wNextPlayPage = m_PlayPage.header.exit; // 다음 페이지를 Exit 페이지로
 				}
 				else
 				{
 					bPlayRepeatCount--;
-                    if( bPlayRepeatCount > 0 ) // 반복 횟수가 남은 경우
-                        wNextPlayPage = m_IndexPlayingPage; // 다음 페이지를 현재 페이지로
-                    else // 반복완료 인 경우
-                        wNextPlayPage = m_PlayPage.header.next; // 다음 페이지를 Next 페이지로
+					if( bPlayRepeatCount > 0 ) // 반복 횟수가 남은 경우
+						wNextPlayPage = m_IndexPlayingPage; // 다음 페이지를 현재 페이지로
+					else // 반복완료 인 경우
+						wNextPlayPage = m_PlayPage.header.next; // 다음 페이지를 Next 페이지로
 				}
 
-                if( wNextPlayPage == 0 ) // 재생할 다음 페이지가 없는 경우 : 현재 스텝까지 하고 종료
+				if( wNextPlayPage == 0 ) // 재생할 다음 페이지가 없는 경우 : 현재 스텝까지 하고 종료
 					m_PlayingFinished = true;
 				else
 				{
-                    // 다음 페이지 로딩(같은 경우: 메모리 복사, 다른 경우: 파일에서 읽기)
+					// 다음 페이지 로딩(같은 경우: 메모리 복사, 다른 경우: 파일에서 읽기)
 					if( m_IndexPlayingPage != wNextPlayPage )
 						LoadPage( wNextPlayPage, &m_NextPlayPage );
 					else
 						m_NextPlayPage = m_PlayPage;
 
-                    // 재생 할 정보가 없는 경우: 현재 스텝까지 하고 종료
+					// 재생 할 정보가 없는 경우: 현재 스텝까지 하고 종료
 					if( m_NextPlayPage.header.repeat == 0 || m_NextPlayPage.header.stepnum == 0 )
 						m_PlayingFinished = true;
 				}
 			}
 
-            //////// Step 파라미터 계산
+			//////// Step 파라미터 계산
 			wPauseTime = (((unsigned short)m_PlayPage.step[m_PageStepCount-1].pause) << 5) / m_PlayPage.header.speed;
 			wMaxSpeed256 = ((unsigned short)m_PlayPage.step[m_PageStepCount-1].time * (unsigned short)m_PlayPage.header.speed) >> 5;
 			if( wMaxSpeed256 == 0 )
 				wMaxSpeed256 = 1;
 			wMaxAngle1024 = 0;
 
-            ////////// Joint별 파라미터 계산
+			////////// Joint별 파라미터 계산
 			for( bID = 1; bID <= 20; bID++ )
 			{
 				// if(m_Joint.GetEnable(bID) == true)
 				{
-                    // 이전, 현재, 미래를 바탕으로 궤적 계산
+					// 이전, 현재, 미래를 바탕으로 궤적 계산
 					ipAccelAngle1024[bID] = 0;
 
 					// Find current target angle
@@ -528,9 +680,9 @@ bool ActionScript::getJointPosition()
 					ipMovingAngle1024[bID] = (int)(wpTargetAngle1024[bID] - wpStartAngle1024[bID]);
 
 					// Find Next target angle
-                    if( m_PageStepCount == m_PlayPage.header.stepnum ) // 현재 스텝이 마지막인 경우
+					if( m_PageStepCount == m_PlayPage.header.stepnum ) // 현재 스텝이 마지막인 경우
 					{
-                        if( m_PlayingFinished == true ) // 종료 예정
+						if( m_PlayingFinished == true ) // 종료 예정
 							wNextTargetAngle = wCurrentTargetAngle;
 						else
 						{
@@ -540,7 +692,7 @@ bool ActionScript::getJointPosition()
 								wNextTargetAngle = m_NextPlayPage.step[0].position[bID];
 						}
 					}
-                    // 마지막이 아닌 경우
+					// 마지막이 아닌 경우
 					else
 					{
 						if( m_PlayPage.step[m_PageStepCount].position[bID] & INVALID_BIT_MASK )
@@ -553,7 +705,7 @@ bool ActionScript::getJointPosition()
 					if( ((wPrevTargetAngle < wCurrentTargetAngle) && (wCurrentTargetAngle < wNextTargetAngle))
 							|| ((wPrevTargetAngle > wCurrentTargetAngle) && (wCurrentTargetAngle > wNextTargetAngle)) )
 					{
-                        // 계속 증가/감소, 같은 경우(방향전환 x)
+						// 계속 증가/감소, 같은 경우(방향전환 x)
 						bDirectionChanged = 0;
 					}
 					else
@@ -585,12 +737,12 @@ bool ActionScript::getJointPosition()
 				}
 			}
 
-            // 시간을 계산해서 다시 7.8ms으로 나누다(<<7) - 진행시간 동안에 7.8ms 주기가 몇번 반복되는지 계산
-            // 단위변환 뒤에 구한 시간(각/속도)에 7.8ms 주기가 몇번 반복되는지 계산
-            // 단위변환 ---   각: 1024계->300도계,  속도: 256계 ->720계
-            // wUnitTimeNum = ((wMaxAngle1024*300/1024) /(wMaxSpeed256 * 720/256)) /7.8msec;
-            //              = ((128*wMaxAngle1024*300/1024) /(wMaxSpeed256 * 720/256)) ;    (/7.8msec == *128)
-            //              = (wMaxAngle1024*40) /(wMaxSpeed256 *3);
+			// 시간을 계산해서 다시 7.8ms으로 나누다(<<7) - 진행시간 동안에 7.8ms 주기가 몇번 반복되는지 계산
+			// 단위변환 뒤에 구한 시간(각/속도)에 7.8ms 주기가 몇번 반복되는지 계산
+			// 단위변환 ---   각: 1024계->300도계,  속도: 256계 ->720계
+			// wUnitTimeNum = ((wMaxAngle1024*300/1024) /(wMaxSpeed256 * 720/256)) /7.8msec;
+			//              = ((128*wMaxAngle1024*300/1024) /(wMaxSpeed256 * 720/256)) ;    (/7.8msec == *128)
+			//              = (wMaxAngle1024*40) /(wMaxSpeed256 *3);
 			if( m_PlayPage.header.schedule == TIME_BASE_SCHEDULE )
 				wUnitTimeTotalNum  = wMaxSpeed256; //TIME BASE 051025
 			else
@@ -605,7 +757,7 @@ bool ActionScript::getJointPosition()
 				{
 					wAccelStep = (wUnitTimeTotalNum - 1) >> 1;
 					if( wAccelStep == 0 )
-                        wUnitTimeTotalNum = 0; //움직이려면 적어도 가속, 등속 구간이 한 스텝 이상씩은 존재
+						wUnitTimeTotalNum = 0; //움직이려면 적어도 가속, 등속 구간이 한 스텝 이상씩은 존재
 				}
 			}
 
@@ -648,88 +800,7 @@ bool ActionScript::getJointPosition()
 	return false;
 }
 
-bool ActionScript::getJointName(const int &id, std::string& joint_name)
-{
-	/*
-    // Use param server
-    if(m_portNum == NotCount)
-    {
-        if(isJointNameInParam() == false || m_portNum == NoPort)
-            return false;
-    }
-
-    for(int pi = 0; pi < m_portNum; pi++)
-    {
-        std::stringstream _dev_idx;
-        _dev_idx << pi;
-
-        int _dxl_num;
-        if(param_nh.getParam("serial_ports/dxl_tty"+_dev_idx.str()+"/dxl_num", _dxl_num) == false || _dxl_num < 0)
-            return false;
-
-        for(int di = 0; di < _dxl_num; di++)
-        {
-            int _id = -1;
-            joint_name = "";
-
-            std::stringstream _dxl_idx;
-            _dxl_idx << di;
-            nh.getParam("serial_ports/dxl_tty"+dev_idx.str()+"/dxl"+_dxl_idx.str()+"/id", _id);
-
-            if(_id == id)
-            {
-                if(nh.getParam("serial_ports/dxl_tty"+dev_idx.str()+"/dxl"+_dxl_idx.str()+"/joint_name", joint_name) == true)
-                {
-                    return true;
-                }
-                return false;
-            }
-        }
-    }
-	 */
-
-	if(id > 0 && id < NUMBER_OF_JOINTS)
-	{
-		joint_name = joint_names[id];
-		return true;
-	}
-	return false;
-}
-
-void ActionScript::motionControlCallback(const std_msgs::Int16::ConstPtr &msg)
-{
-	if(m_ActionFile == 0)
-	{
-		ROS_ERROR("Motion file is not yet opened.");
-		return;
-	}
-
-	if(m_Playing == true)
-	{
-		ROS_ERROR("Motion is playing.");
-		return;
-	}
-
-	// set flag to play motion
-	Start(msg->data);
-}
-
-void ActionScript::jointStatesCallback(const sensor_msgs::JointState::ConstPtr &msg)
-{
-	// ROS_INFO("get current");
-	// update current joint angle
-	current_joint_state = *msg;
-}
-
-void ActionScript::Process()
-{
-	if(m_ActionFile == 0) return;
-
-	// control joint thread
-	comm_thread = boost::thread(boost::bind(&ActionScript::comm_thread_proc, this));
-}
-
-bool ActionScript::LoadFile( char* filename )
+bool Action::LoadFile( char* filename )
 {
 	// open action file
 	FILE *action = fopen( filename, "r+b" );
@@ -767,7 +838,7 @@ bool ActionScript::LoadFile( char* filename )
 	return true;
 }
 
-bool ActionScript::Start(int iPage)
+bool Action::Start(int iPage)
 {
 	// check index of page
 	if( iPage < 1 || iPage >= MAXNUM_PAGE )
@@ -784,7 +855,7 @@ bool ActionScript::Start(int iPage)
 	return Start(iPage, &page);
 }
 
-bool ActionScript::Start(int index, PAGE *pPage)
+bool Action::Start(int index, PAGE *pPage)
 {
 	if(m_Playing == true)
 	{
@@ -808,12 +879,12 @@ bool ActionScript::Start(int index, PAGE *pPage)
 	return true;
 }
 
-void ActionScript::Stop()
+void Action::Stop()
 {
 	m_StopPlaying = true;
 }
 
-bool ActionScript::LoadPage(int index, PAGE *pPage)
+bool Action::LoadPage(int index, PAGE *pPage)
 {
 	long position = (long)(sizeof(PAGE)*index);
 
@@ -837,7 +908,7 @@ bool ActionScript::LoadPage(int index, PAGE *pPage)
 	return true;
 }
 
-bool ActionScript::VerifyChecksum( PAGE *pPage )
+bool Action::VerifyChecksum( PAGE *pPage )
 {
 	unsigned char checksum = 0x00;
 	unsigned char *pt = (unsigned char*)pPage;
@@ -854,7 +925,7 @@ bool ActionScript::VerifyChecksum( PAGE *pPage )
 	return true;
 }
 
-void ActionScript::SetChecksum( PAGE *pPage )
+void Action::SetChecksum( PAGE *pPage )
 {
 	unsigned char checksum = 0x00;
 	unsigned char *pt = (unsigned char*)pPage;
@@ -870,7 +941,7 @@ void ActionScript::SetChecksum( PAGE *pPage )
 	pPage->header.checksum = (unsigned char)(0xff - checksum);
 }
 
-void ActionScript::ResetPage(PAGE *pPage)
+void Action::ResetPage(PAGE *pPage)
 {
 	/*
     unsigned char *pt = (unsigned char*)pPage;
