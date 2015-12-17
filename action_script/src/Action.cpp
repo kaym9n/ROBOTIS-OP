@@ -252,7 +252,7 @@ bool Action::initializeIdJointTable()
 	if(id_joint_table.size() == 0 || joint_id_table.size() == 0)
 		return false;
 
-	ROS_INFO("id : %d, name : %d", id_joint_table.size(), joint_id_table.size());
+    ROS_INFO("id : %d, name : %d", (int)id_joint_table.size(), (int)joint_id_table.size());
 	return true;
 }
 

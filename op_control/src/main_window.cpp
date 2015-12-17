@@ -92,6 +92,11 @@ void MainWindow::on_button_play_motion_clicked(bool check )
     qnode.play_motion(_motion_index, _motion_text);
 }
 
+void MainWindow::on_button_stop_motion_clicked(bool check)
+{
+     qnode.play_motion(0, "");
+}
+
 void MainWindow::on_slider_head_pan_valueChanged(int value)
 {
     if(_is_feedback == true) return;

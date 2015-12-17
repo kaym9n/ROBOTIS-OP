@@ -1,3 +1,4 @@
+<?xml version="1.0"?>
 <launch>
   <node pkg="robotis_op2_camera" type="uvc_camera_node" name="robotis_op_camera" output="screen">
     <param name="width" type="int" value="640" />

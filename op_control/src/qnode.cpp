@@ -120,7 +120,8 @@ void QNode::play_motion(int index, std::string name)
     _play_motion_pub.publish(_motion_data);
 
     std::stringstream _ss;
-    _ss << "Play Motion #" << index << " : " << name;
+    if(index == 0)_ss << "STOP motion!!";
+    else _ss << "Play Motion #" << index << " : " << name;
     log(Info, _ss.str());
 }
 

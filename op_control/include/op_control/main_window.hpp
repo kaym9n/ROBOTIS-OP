@@ -46,6 +46,7 @@ public Q_SLOTS:
 	*******************************************/
 	void on_actionAbout_triggered();
     void on_button_play_motion_clicked(bool check );
+    void on_button_stop_motion_clicked(bool check);
     void on_slider_head_pan_valueChanged(int value);
     void on_slider_head_tilt_valueChanged(int value);
 

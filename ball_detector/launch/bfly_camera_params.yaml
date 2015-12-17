@@ -1,0 +1,4 @@
+
+videoMode: 1
+pixelFormat: 1
+calibrationFile: '/home/andreu/dev/extSw/openCv/cameraCalibration/data/bflyPtGrey/calib_bfly_l6mm_vm5_rgb8.xml'

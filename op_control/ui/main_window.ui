@@ -253,7 +253,7 @@
         <number>90</number>
        </property>
        <property name="singleStep">
-        <number>5</number>
+        <number>3</number>
        </property>
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
@@ -269,10 +269,17 @@
         <number>40</number>
        </property>
        <property name="singleStep">
-        <number>5</number>
+        <number>3</number>
        </property>
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="0">
+      <widget class="QPushButton" name="button_stop_motion">
+       <property name="text">
+        <string>STOP</string>
        </property>
       </widget>
      </item>

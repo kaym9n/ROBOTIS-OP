@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!-- Launches an UVC camera, the ball detector and its visualization  -->
+
+<launch>
+    <!-- UVC camera -->
+
+    <!-- ball detector     -->
+    <node pkg="ball_detector" type="ball_detector_node" name="ball_detector_node" args="" output="screen">
+        <rosparam command="load" file="$(find ball_detector)/launch/ball_detector_params_op.yaml"/>  
+        <param name="yaml_path" type="string" value="$(find ball_detector)/launch/ball_detector_params.yaml" />
+        <remap from="/ball_detector_node/image_in" to="/image_raw"/>                  
+    </node>
+</launch>
+
