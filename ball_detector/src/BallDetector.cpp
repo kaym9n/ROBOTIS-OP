@@ -44,10 +44,11 @@ BallDetector::BallDetector() : nh(ros::this_node::getName()) , it(this->nh), par
     //sets publishers
     imagePub = it.advertise("image_out", 100);
     circlesPub = nh.advertise<ball_detector::circleSetStamped>("circle_set", 100);
+    cameraInfoPub = nh.advertise<sensor_msgs::CameraInfo>("camera_info", 100);
 
     //sets subscribers
     imageSubs = it.subscribe("image_in", 1, &BallDetector::imageCallback, this);
-    //nh.subscribe("cameraInfo_in", 100, &CballDetectorNode::cameraInfoCallback, this);
+    cameraInfoSub = nh.subscribe("cameraInfo_in", 100, &BallDetector::cameraInfoCallback, this);
 
     //initializes newImageFlag
     newImageFlag = false;
@@ -109,6 +110,7 @@ void BallDetector::publishImage()
     }
     getOutputImage(cvImgPub.image);
     imagePub.publish(cvImgPub.toImageMsg());
+    cameraInfoPub.publish(cameraInfoMsg);
 }
 
 void BallDetector::publishCircles()
@@ -174,12 +176,12 @@ void BallDetector::dynParamCallback(ball_detector::detectorParamsConfig &config,
     saveConfig();
 }
 
-/*
+
 void BallDetector::cameraInfoCallback(const sensor_msgs::CameraInfo & msg)
 {
-      // nothing to do ...
+    cameraInfoMsg = msg;
 }
-*/
+
 
 void BallDetector::printConfig()
 {

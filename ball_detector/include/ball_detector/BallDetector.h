@@ -8,7 +8,7 @@
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
-// #include "sensor_msgs/CameraInfo.h"
+#include "sensor_msgs/CameraInfo.h"
 #include <sensor_msgs/image_encodings.h>
 #include <dynamic_reconfigure/server.h>
 #include "ball_detector/circleSetStamped.h"
@@ -41,8 +41,9 @@ class BallDetector
              ros::Publisher circlesPub;
 
             //camera info subscriber
-            // sensor_msgs::CameraInfo cameraInfoMsg;
-            // ros::Subscriber cameraInflSubs;
+            sensor_msgs::CameraInfo cameraInfoMsg;
+            ros::Subscriber cameraInfoSub;
+            ros::Publisher cameraInfoPub;
 
             //dynamic reconfigure
             DetectorConfig params_config;
@@ -79,7 +80,7 @@ class BallDetector
             void imageCallback(const sensor_msgs::ImageConstPtr & msg);
 
             //callbacks to camera info subscription
-            // void cameraInfoCallback(const sensor_msgs::CameraInfo & msg);
+            void cameraInfoCallback(const sensor_msgs::CameraInfo & msg);
 
             void dynParamCallback(ball_detector::detectorParamsConfig &config, uint32_t level);
 
