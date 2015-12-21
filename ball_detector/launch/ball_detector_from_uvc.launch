@@ -14,13 +14,14 @@
         <param name="white_balance_temperature" value="2800" />
     </node>
 
-    <!-- ball detector     -->
+    <!-- ball detector -->
     <node pkg="ball_detector" type="ball_detector_node" name="ball_detector_node" args="" output="screen">
         <rosparam command="load" file="$(arg config_path)"/>  
         <param name="yaml_path" type="string" value="$(arg config_path)"/>
         <remap from="/ball_detector_node/image_in" to="/image_raw" />
     </node>
 
+    <!-- rviz -->
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find ball_detector)/launch/ball_detector.rviz"/>   
 
 </launch>
