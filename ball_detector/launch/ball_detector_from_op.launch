@@ -11,6 +11,7 @@
 	<!-- yaml path to save config -->
         <param name="yaml_path" type="string" value="$(arg config_path)"/>
         <remap from="/ball_detector_node/image_in" to="/image_raw" />
+        <remap from="/ball_detector_node/cameraInfo_in" to="/camera_info" />
     </node>
 </launch>
 
