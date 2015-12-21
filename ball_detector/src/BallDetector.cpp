@@ -100,7 +100,7 @@ void BallDetector::publishImage()
     //image_raw topic
     cvImgPub.header.seq ++;
     cvImgPub.header.stamp = sub_time;
-    cvImgPub.header.frame_id = "detector"; //To do: get frame_id from input image
+    cvImgPub.header.frame_id = image_frame_id;
     switch(imgEncoding)
     {
         case IMG_RGB8: cvImgPub.encoding = sensor_msgs::image_encodings::RGB8; break;
@@ -152,6 +152,7 @@ void BallDetector::imageCallback(const sensor_msgs::ImageConstPtr & msg)
 
     //indicates a new image is available
     this->sub_time = msg->header.stamp;
+    this->image_frame_id = msg->header.frame_id;
     this->newImageFlag = true;
     return;
 }

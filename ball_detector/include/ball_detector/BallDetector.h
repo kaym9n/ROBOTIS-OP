@@ -52,8 +52,9 @@ class BallDetector
             //flag indicating a new image has been received
             bool newImageFlag;
 
-            //image time stamp
+            //image time stamp and frame id
             ros::Time sub_time;
+            std::string image_frame_id;
 
             //img encoding id
             unsigned int imgEncoding;
