@@ -5,6 +5,6 @@ hough_accum_resolution: 1
 min_circle_dist: 40
 hough_accum_th: 19
 min_radius: 20
-max_radius: 150
-filter_threshold: 160
-filter_debug: true
+max_radius: 151
+filter_threshold: 155
+filter_debug: false
