@@ -30,6 +30,8 @@ BallDetector::BallDetector() : nh(ros::this_node::getName()) , it(this->nh), par
 
     //get user parameters from dynamic reconfigure (yaml entries)
     nh.param<int>("gaussian_blur_size", detCfg.gaussian_blur_size, params_config.gaussian_blur_size);
+    if(detCfg.gaussian_blur_size % 2 == 0) detCfg.gaussian_blur_size -= 1;
+    if(detCfg.gaussian_blur_size <= 0) detCfg.gaussian_blur_size = 1;
     nh.param<double>("gaussian_blur_sigma", detCfg.gaussian_blur_sigma, params_config.gaussian_blur_sigma);
     nh.param<double>("canny_edge_th", detCfg.canny_edge_th, params_config.canny_edge_th);
     nh.param<double>("hough_accum_resolution", detCfg.hough_accum_resolution, params_config.hough_accum_resolution);
@@ -171,6 +173,10 @@ void BallDetector::dynParamCallback(ball_detector::detectorParamsConfig &config,
     params_config.max_radius               = config.max_radius;
     params_config.filter_threshold         = config.filter_threshold;
     params_config.debug                    = config.debug_image;
+
+    // gaussian_blur has to be odd number.
+    if(params_config.gaussian_blur_size % 2 == 0) params_config.gaussian_blur_size -= 1;
+    if(params_config.gaussian_blur_size <= 0) params_config.gaussian_blur_size = 1;
 
     printConfig();
     saveConfig();
